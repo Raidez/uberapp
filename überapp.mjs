@@ -1,4 +1,4 @@
-function node(tag, attrs, content) {
+export function node(tag, attrs, content) {
     let elem = document.createElement(tag);
 
     Object.keys(attrs).map(key => {
@@ -22,7 +22,7 @@ function node(tag, attrs, content) {
     return elem;
 }
 
-function app(config) {
+export function app(config) {
     let root = document.querySelector(config.node);
     if (root == null) {
         throw new Error(`Element ${config.node} not found in DOM !`)

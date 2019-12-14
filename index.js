@@ -1,6 +1,6 @@
-import { app, node } from "überapp"
-
+import { app, node } from "./überapp.mjs"
 const $ = node;
+
 app({
     node: '#counter',
     data: {
@@ -13,7 +13,7 @@ app({
             $('button', { onclick: () => data.counter -= 1 }, "-"),
         ])
 })
-
+/*
 app({
     node: '#todolist',
     data: {
@@ -29,4 +29,4 @@ app({
             // ]))),
         ])
     },
-})
+})*/
