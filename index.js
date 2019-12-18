@@ -81,9 +81,9 @@ app({
     view: (data, methods, style) =>
         $('div', {}, [
             $('h1', {}, "Todolist"),
-            $('ul', {}, data.tasks.map((taskname, taskid) => $('li', { class: style.get('li:hover .btn-del') }, [
+            $('ul', {}, data.tasks.map((taskname, taskid) => $('li', {}, [
                 taskname,
-                $('button', { class: style.get('.btn-del'), onclick: () => methods.deltask(taskid) }, "&times;"),
+                $('button.btn-del', { onclick: () => methods.deltask(taskid) }, "&times;"),
             ]))),
             $('form', { onsubmit: () => methods.handleSubmit(event) }, [
                 $('input:text@taskname'),
