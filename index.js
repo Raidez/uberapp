@@ -2,16 +2,6 @@ import { app, node } from "./überapp.js"
 const $ = node;
 
 app({
-    node: '#app',
-    data: {
-    },
-    methods: {
-    },
-    view: (state, ctrl) =>
-        $('div', {}, [])
-})
-
-app({
 	node: '#hello',
 	data: {
 		message: "world!",
@@ -64,7 +54,6 @@ app({
             event.target.reset();
         },
     },
-    lockStyle: true,
     style: {
         '.btn-del': {
             visibility: 'hidden',
@@ -91,3 +80,28 @@ app({
             ]),
         ])
 })
+
+app({
+    node: '#dynamic',
+    style: {
+        '.colorize': {
+            'color': "yellow"
+        }
+    },
+    methods: {
+        changeStyle: function() {
+            this._style['.colorize'] = { 'color': "blue" };
+            this._render();
+        },
+        blackStyle: function() {
+            this._style['.colorize'] = {};
+            this._render();
+            
+        },
+    },
+    view: (data, methods) =>
+        $('div', {}, [
+            $('button:button.colorize', { onclick: () => methods.changeStyle() }, "Color buttons blue !"),
+            $('button:button.colorize', { onclick: () => methods.blackStyle() }, "Color buttons black !"),
+        ])
+});
