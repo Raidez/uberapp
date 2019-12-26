@@ -22,63 +22,63 @@ app({
 })
 
 app({
-    node: '#counter',
-    data: {
-        counter: 0,
-    },
-    view: (data) => 
-        $('div', {}, [
-            $('h1', {}, "Counter: "+ data.counter),
-            $('button', { onclick: () => data.counter += 1 }, "+"),
-            $('button', { onclick: () => data.counter -= 1 }, "-"),
-        ])
+	node: '#counter',
+	data: {
+		counter: 0,
+	},
+	view: (data) => 
+		$('div', {}, [
+			$('h1', {}, "Counter: "+ data.counter),
+			$('button', { onclick: () => data.counter += 1 }, "+"),
+			$('button', { onclick: () => data.counter -= 1 }, "-"),
+		])
 })
 
 app({
-    node: '#todolist',
-    data: {
-        tasks: ["Make an app with Hyperapp"],
-    },
-    methods: {
-        addtask: function(taskname) {
-            this.tasks = [...this.tasks, taskname];
-        },
-        deltask: function(taskid) {
-            this.tasks = this.tasks.filter((task, id) => id != taskid);
-        },
-        handleSubmit: function(event) {
-            event.preventDefault();
-            let taskname = new FormData(event.target).get('taskname');
-            if (!taskname) return;
-            this._methods.addtask(taskname);
-            event.target.reset();
-        },
-    },
-    style: {
-        '.btn-del': {
-            visibility: 'hidden',
-            color: 'red',
-            border: 'none',
-            backgroundColor: 'transparent',
-            fontWeight: 'bold',
-        },
-        'li:hover .btn-del':  {
-            visibility: 'visible',
-            cursor: 'pointer',
-        }
-    },
-    view: (data, methods, style) =>
-        $('div', {}, [
-            $('h1', {}, "Todolist"),
-            $('ul', {}, data.tasks.map((taskname, taskid) => $('li', {}, [
-                taskname,
-                $('button.btn-del', { onclick: () => methods.deltask(taskid) }, "&times;"),
-            ]))),
-            $('form', { onsubmit: () => methods.handleSubmit(event) }, [
-                $('input:text@taskname'),
-                $('input:submit'),
-            ]),
-        ])
+	node: '#todolist',
+	data: {
+		tasks: ["Make an app with Hyperapp"],
+	},
+	methods: {
+		addtask: function(taskname) {
+			this.tasks = [...this.tasks, taskname];
+		},
+		deltask: function(taskid) {
+			this.tasks = this.tasks.filter((task, id) => id != taskid);
+		},
+		handleSubmit: function(event) {
+			event.preventDefault();
+			let taskname = new FormData(event.target).get('taskname');
+			if (!taskname) return;
+			this._methods.addtask(taskname);
+			event.target.reset();
+		},
+	},
+	style: {
+		'.btn-del': {
+			visibility: 'hidden',
+			color: 'red',
+			border: 'none',
+			backgroundColor: 'transparent',
+			fontWeight: 'bold',
+		},
+		'li:hover .btn-del':  {
+			visibility: 'visible',
+			cursor: 'pointer',
+		}
+	},
+	view: (data, methods, style) =>
+		$('div', {}, [
+			$('h1', {}, "Todolist"),
+			$('ul', {}, data.tasks.map((taskname, taskid) => $('li', {}, [
+				taskname,
+				$('button.btn-del', { onclick: () => methods.deltask(taskid) }, "&times;"),
+			]))),
+			$('form', { onsubmit: () => methods.handleSubmit(event) }, [
+				$('input:text@taskname'),
+				$('input:submit'),
+			]),
+		])
 })
 
 app({
@@ -90,18 +90,19 @@ app({
     },
     methods: {
         changeStyle: function() {
-            this._style['.colorize'] = { 'color': "blue" };
-            this._render();
+			this._style.put('.colorize', 'color', 'blue');
         },
         blackStyle: function() {
-            this._style['.colorize'] = {};
-            this._render();
-            
-        },
+			this._style.del('.colorize');
+		},
+		resetStyle: function() {
+			this._style.reset(this.__style);
+		}
     },
     view: (data, methods) =>
         $('div', {}, [
             $('button:button.colorize', { onclick: () => methods.changeStyle() }, "Color buttons blue !"),
-            $('button:button.colorize', { onclick: () => methods.blackStyle() }, "Color buttons black !"),
+            $('button:button.colorize', { onclick: () => methods.blackStyle() }, "Color buttons black (default color) !"),
+            $('button:button.colorize', { onclick: () => methods.resetStyle() }, "Reset style !"),
         ])
 });

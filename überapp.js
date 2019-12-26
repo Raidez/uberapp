@@ -1,6 +1,6 @@
 const pattern_button = /^(input|button):\w+$/;
 const pattern_onevent = /^(on)\w+$/;
-const pattern_shortcut = /[#\.@:][\w-_]+/;
+const pattern_shortcut = /[#\.@:=][\w-_]+/;
 const pattern_unexpected_selector = /::?[\w_-\d()]+|\[.+\]/;
 const pattern_separator_selector = /[ ,>+~]+/;
 const shortcuts_name = {
@@ -8,6 +8,7 @@ const shortcuts_name = {
 	'.': "class",
 	'#': "id",
 	'@': "name",
+	'=': "value",
 };
 
 /**
@@ -16,29 +17,142 @@ const shortcuts_name = {
  * @param string The string
  * @returns <String>
  */
-function findall(pattern, string) {
+RegExp.prototype.findall = function(string) {
 	let finds = [];
-	while (pattern.test(string)) {
-		let found = pattern.exec(string)[0];
+	while (this.test(string)) {
+		let found = this.exec(string)[0];
 		finds.push(found);
 		string = string.replace(found, '');
 	}
 	return finds;
 }
 
-String.prototype.hashCode = function(cut=-1, positiveOnly=false) {
-	let hash = 0, i, chr;
-	if (this.length === 0) return hash;
-	for (i = 0; i < this.length; i++) {
-		chr = this.charCodeAt(i);
-		hash = ((hash << 5) - hash) + chr;
-		hash |= 0;
+/**
+ * Convert Map to Object
+ * @returns Object
+ */
+Map.prototype.toObject = function() {
+	return Array.from(this).reduce((obj, [key, value]) => (
+		Object.assign(obj, { [key]: value })
+	), {});
+};
+
+/**
+ * Generate id
+ * @param id_length 
+ * @param alphabet 
+ * @param start_with_letter 
+ */
+function hash(id_length=8, alphabet="0123456789abcdefghijklmnopqrstuvwxyz", start_with_letter=true) {
+	let id = "";
+	for (let i = 0; i < id_length; i++) {
+		let char = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+		while(i == 0 && start_with_letter && !/^[a-zA-Z]/.test(char)) {
+			char = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+		}
+		id += char;
+	}
+	return id;
+}
+
+/**
+ * Style class utilities
+ */
+class Style {
+	constructor(id=null) {
+		id = (id)? id : "css-" + hash(4);
+		this.rules = new Map();
+		this.styleTag = document.querySelector('style#' + id);
+		if (document.querySelector('style#' + id) == null) {
+			this.styleTag = document.createElement('style');
+			this.styleTag.id = id;
+			document.head.appendChild(this.styleTag);
+		}
+		this.sheet = this.styleTag.sheet;
 	}
 
-	hash = (positiveOnly)? Math.abs(hash) : hash;
-	hash = (cut > 0)? hash.toString().substring(0, cut) : hash;
-	return hash;
-};
+	_kebabCase(prop) {
+		// convert CamelCase to kebab-case
+		/[A-Z]/.findall(prop).map(camel => {
+			prop = prop.replace(camel, `-${camel.toLowerCase()}`)
+		});
+		return prop;
+	}
+
+	static from(style={}) {
+		let s = new this();
+		for (let [selector, props] of Object.entries(style)) {
+			for (let [prop, value] of Object.entries(props)) {
+				s.put(selector, prop, value);
+			}
+		}
+		return s;
+	}
+
+	get(selector, prop=null) {
+		prop = this._kebabCase(prop);
+		return (prop)? this.rules.get(selector).get(prop) : Object.freeze(this.rules.get(selector).toObject());
+	}
+
+	put(selector, prop, value) {
+		prop = this._kebabCase(prop);
+		if (!this.rules.has(selector)) {
+			this.rules.set(selector, new Map([ [prop, value] ]));
+		} else {
+			this.rules.get(selector).set(prop, value);
+		}
+	}
+
+	del(selector, prop=null) {
+		prop = this._kebabCase(prop);
+		(prop)? this.rules.get(selector).delete(prop) : this.rules.delete(selector)
+	}
+
+	reset(style) {
+		this.rules.clear();
+		for (let [selector, props] of Object.entries(style)) {
+			for (let [prop, value] of Object.entries(props)) {
+				this.put(selector, prop, value);
+			}
+		}
+	}
+
+	apply(root=document.body) {
+		// clean rules
+		Array.from(this.sheet.cssRules).map(() => this.sheet.deleteRule(0) );
+
+		this.rules.forEach((props, initial_selector) => {
+			// lock selector
+			let selector = initial_selector;
+			initial_selector.split(pattern_separator_selector).map(node_selector => {
+				let nodeId = "über-" + hash(6);
+				
+				/// clean selector to only select element target
+				let cleanSelector = node_selector.replace(pattern_unexpected_selector, '');
+				let nodes = root.querySelectorAll(cleanSelector);
+                nodes.forEach(node => {
+					if (node.className.split(' ').some(c => /über-/.test(c))) {
+						nodeId = node.className.split(' ').filter(c => /über-/.test(c))[0];
+					} else {
+						node.classList.add(nodeId);
+					}
+				});
+
+				selector = selector.replace(node_selector, `${node_selector}.${nodeId}`);
+			});
+
+			// insert rules
+			let rule = `${selector} {\n`;
+			props.forEach((value, prop) => {
+				rule += `\t${prop}: ${value};\n`;
+			});
+			rule += "}";
+			this.sheet.insertRule(rule);
+		});
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * Create new node element
@@ -50,8 +164,7 @@ String.prototype.hashCode = function(cut=-1, positiveOnly=false) {
 export function node(tag, attrs = {}, content = "") {
 	// use shortcut for attributes
 	if (pattern_shortcut.test(tag)) {
-		let shortcuts = findall(pattern_shortcut, tag);
-		shortcuts.map(shortcut => {
+		pattern_shortcut.findall(tag).map(shortcut => {
 			let attrvalue = shortcut.substring(1);
 			let attrname = shortcuts_name[shortcut.substring(0, 1)]
 			let attrcur = attrs[attrname];
@@ -70,6 +183,7 @@ export function node(tag, attrs = {}, content = "") {
 	}
 
 	// try to create element
+	tag = (tag.length == 0)? "div" : tag;
 	let elem = document.createElement(tag);
 	if (elem instanceof HTMLUnknownElement && !pattern_button.test(tag)) {
 		console.error(`The element can't be create with the tagname "${tag}"`);
@@ -86,6 +200,11 @@ export function node(tag, attrs = {}, content = "") {
 		elem.addEventListener(eventname, function() {
 			state[model] = elem.value;
 		});
+
+		/// remove useless attributes
+		delete attrs['bind'];
+		delete attrs['model'];
+		delete attrs['event'];
 	}
 
 	// attach attribute and event
@@ -132,6 +251,7 @@ export function app(config) {
 	config.data = (config.data)? config.data : {};
 	config.methods = (config.methods)? config.methods : {};
 	config.style = (config.style)? config.style : {};
+	config.styleObject = (Object.entries(config.style).length > 0)? Style.from(config.style) : new Style();
 
 	// find root element
 	let root = document.querySelector(config.node);
@@ -152,6 +272,7 @@ export function app(config) {
 		let content = config.view(config.data, config.methods);
 		root.innerHTML = "";
 		root.appendChild(content);
+		config.styleObject.apply(root);
 		
 		/// focus element and caret position from previous state
 		if (!(focus.elem instanceof HTMLBodyElement)) {
@@ -162,16 +283,33 @@ export function app(config) {
 				elem_focus.selectionEnd = focus.caret[1];
 			}
 		}
-		
-		if (Object.entries(config.style).length > 0) {
-			Style.from(config.style, content, config.node.replace('#', '')).apply();
-		}
 	}
 	
-	// when change, update view
+	// when change on data or style, update view
 	config.data = new Proxy(config.data, {
-		set: (obj, prop, val) => {
-			obj[prop] = val;
+		set: (target, prop, val) => {
+			target[prop] = val;
+			render();
+			return true;
+		}
+	});
+	config.styleObject.put = new Proxy(config.styleObject.put, {
+		apply: (fn, that, args) => {
+			fn.apply(that, args);
+			render();
+			return true;
+		}
+	});
+	config.styleObject.del = new Proxy(config.styleObject.del, {
+		apply: (fn, that, args) => {
+			fn.apply(that, args);
+			render();
+			return true;
+		}
+	});
+	config.styleObject.reset = new Proxy(config.styleObject.reset, {
+		apply: (fn, that, args) => {
+			fn.apply(that, args);
 			render();
 			return true;
 		}
@@ -181,92 +319,11 @@ export function app(config) {
 	for (let [funcname, handler] of Object.entries(config.methods)) {
 		let binder = config.data;
 		binder['_methods'] = config.methods;
-		binder['_style'] = config.style;
+		binder['_style'] = config.styleObject;
+		binder['__style'] = Object.freeze(config.style);
 		binder['_render'] = render;
 		config.methods[funcname] = handler.bind(binder);
 	}
 	
 	render();
-}
-
-class Style {
-	static from(styleObject, rootElement, styleId) {
-		let style = new Style(styleId);
-        for (let [key, props] of Object.entries(styleObject)) {
-			let finalSelector = "";
-			
-			// hashcode for css selector
-            let hash = "über-" + JSON.stringify(props).hashCode(5, true);
-            key.split(pattern_separator_selector).map(selector => {
-				let existsHash = "";
-                let cleanSelector = selector.replace(pattern_unexpected_selector, ''); // clean selector to only select element target
-                let nodes = rootElement.querySelectorAll(cleanSelector);
-                nodes.forEach(node => {
-                    if (!node.className.split(' ').some(c => /über-/.test(c))) {
-                        node.classList.add(hash);
-                    } else {
-                        existsHash = node.className.split(' ').filter(c => /über-/.test(c))[0];
-                    }
-				});
-				
-				// use existing hashcode selector to deny multiple selector for same element
-                if (existsHash.length > 0) {
-                    finalSelector += " " + selector.replace(cleanSelector, cleanSelector + `.${existsHash}`);
-                } else {
-                    finalSelector += " " + selector.replace(cleanSelector, cleanSelector + `.${hash}`);
-                }
-			});
-
-			// parse rules
-			if (typeof props === 'object') {
-				let rulesObject = [];
-				for (let [prop, value] of Object.entries(props)) {
-					rulesObject.push(`${prop}: ${value};`);
-				}
-				props = rulesObject.join('\n');
-			}
-
-			// convert CamelCase to kebab-case
-			findall(/[A-Z]/, props).map(camel => {
-				props = props.replace(camel, `-${camel.toLowerCase()}`)
-			});
-			
-			// associate rule to selector
-            style.append(finalSelector.trim(), props);
-		}
-		
-		return style;
-	}
-
-	constructor(id="über") {
-		this.rules = [];
-		// use exists <style> node
-		if (document.querySelector('style#' + id) != null) {
-			this.styleTag = document.querySelector('style#' + id);
-		} else {
-			this.styleTag = document.createElement('style');
-			this.styleTag.id = id;
-			document.head.appendChild(this.styleTag);
-		}
-		this.sheet = this.styleTag.sheet;
-	}
-
-    append(selector, props) {
-        this.rules.push({
-			"selector": selector,
-            "props": props,
-        });
-	}
-	
-	remove(selector) {
-		this.rules = this.rules.filter((rule) => rule['selector'] != selector );
-	}
-	
-    apply() {
-		// clean rules
-		Array.from(this.sheet.cssRules).map(() => this.sheet.deleteRule(0) );
-
-        // insert rules
-        this.rules.map((rule) => this.sheet.insertRule(`${rule['selector']} {${rule['props']}}`) );
-    }
 }
