@@ -2,6 +2,16 @@ import { app, node } from "./überapp.js"
 const $ = node;
 
 app({
+	node: '#app',
+	view: () =>
+		$('div', {}, [
+			node('button', { 'data-text': "Hello world", onclick: function() {
+				alert(this.getAttribute('data-text'))
+			} }, "Click me"),
+		])
+});
+
+app({
 	node: '#hello',
 	data: {
 		message: "world!",

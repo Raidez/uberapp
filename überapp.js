@@ -240,7 +240,7 @@ export function node(tag, attrs = {}, content = "") {
 /**
  * Create reactive app inside a node selector
  * @param config Inner object which contains:
- * - view Function which contains HTML (receive data, methods, style and inner render function to re-render)
+ * - view Function which contains HTML (receive data, methods)
  * - node The node selector where view be inserted
  * - data A set of data used by the application
  * - methods A set of methods
